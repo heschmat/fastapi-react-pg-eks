@@ -1,0 +1,46 @@
+# --- Python backend ignores ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.egg-info/
+.env
+venv/
+env/
+ENV/
+*.sqlite3
+*.log
+*.db
+
+# Alembic caches
+backend/alembic/**/__pycache__/
+
+# --- Node/React frontend ignores ---
+node_modules/
+dist/
+build/
+*.log
+.env*
+frontend/.vite/
+frontend/.cache/
+
+# --- Docker / general ---
+*.swp
+*.bak
+*.tmp
+*.orig
+*.rej
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+
+*.Zone.Identifier

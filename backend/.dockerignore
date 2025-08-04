@@ -1,0 +1,42 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables files
+.env
+
+# Virtual environments (if any created inside backend)
+venv/
+env/
+ENV/
+
+# Distribution/build artifacts
+build/
+dist/
+*.egg-info/
+
+# Alembic caches
+backend/alembic/__pycache__/
+backend/alembic/versions/__pycache__/
+
+# Docker related files if you don't want them copied inside the container
+Dockerfile
+docker-compose.yaml
+
+# Logs and temp files
+*.log
+*.tmp
+tmp/
+logs/
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+*.bak
+*.orig
+
+# Git files (if not needed inside container)
+.git/
+.gitignore
