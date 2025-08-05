@@ -62,7 +62,7 @@ function App() {
   return (
     <div className="container">
       <section className="section">
-        <h2 className="heading">Submit Rating</h2>
+        <h2 className="heading">Rate Your Favorite Series</h2>
         <input
           name="username"
           value={form.username}
