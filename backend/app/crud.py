@@ -6,7 +6,7 @@ async def insert_rating(rating_data):
     query = ratings.insert().values(**rating_data)
     await database.execute(query)
 
-async def get_recent_ratings(limit=3):
+async def get_recent_ratings(limit=4):
     query = ratings.select().order_by(ratings.c.id.desc()).limit(limit)
     return await database.fetch_all(query)
 
