@@ -44,3 +44,10 @@ Thumbs.db
 .git/
 
 *.Zone.Identifier
+
+
+# Ignore unsealed secrets
+**/*-secret.yaml
+
+# But keep sealed secrets
+!**/sealed-*-secret.yaml
