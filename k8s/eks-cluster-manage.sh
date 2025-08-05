@@ -66,6 +66,12 @@ case "$ACTION" in
 
     if [ -n "$CLUSTER_NS" ]; then
       echo "Setting default namespace to '$CLUSTER_NS'..."
+      if ! kubectl get namespace "$CLUSTER_NS" > /dev/null 2>&1; then
+        kubectl create namespace "$CLUSTER_NS"
+      else
+        echo "Namespace '$CLUSTER_NS' already exists."
+      fi
+
       kubectl config set-context --current --namespace="$CLUSTER_NS"
     fi
     ;;
