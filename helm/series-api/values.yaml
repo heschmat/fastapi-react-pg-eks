@@ -1,0 +1,35 @@
+namespace: series-api-ns
+
+api:
+  image: 467930584066.dkr.ecr.us-east-1.amazonaws.com/fastapi-app:f1
+  replicas: 1
+  port: 8000
+
+frontend:
+  image: 467930584066.dkr.ecr.us-east-1.amazonaws.com/react-client:f1
+  replicas: 1
+  port: 80
+
+postgres:
+  image: postgres:17
+  user: postgres
+  # ⚠️ DO NOT hardcode passwords or secrets here
+  # Set this using --set postgres.password=... or in secrets.yaml (gitignored)
+  password: CHANGEME_IN_CLI_OR_SECRETS
+  db: ratings_db
+  port: 5432
+  #storage: 1Gi
+  storage:
+    size: 1Gi
+    className: gp3
+  envFromSecret: postgres-secret
+
+ingress:
+  enabled: false
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+  ingressClassName: alb
+  host: ""  # optional

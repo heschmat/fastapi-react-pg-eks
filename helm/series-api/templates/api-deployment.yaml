@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: {{ .Values.namespace }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: {{ .Values.api.image }}
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.envFromSecret | default "postgres-secret" }}
+                  key: DATABASE_URL
+          command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+      initContainers:
+        - name: run-migrations
+          image: {{ .Values.api.image }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              echo "⏳ Waiting for PostgreSQL TCP port..."
+              until nc -z db 5432; do echo "Waiting for postgres..."; sleep 2; done
+              echo "✅ PostgreSQL is up"
+              echo "🚀 Running Alembic migrations..."
+              alembic upgrade head
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgres.envFromSecret | default "postgres-secret" }}
+                  key: DATABASE_URL
