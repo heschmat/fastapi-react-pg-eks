@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 467930584066.dkr.ecr.us-east-1.amazonaws.com/react-client:v1
+          image: 467930584066.dkr.ecr.us-east-1.amazonaws.com/react-client:5633c41
           ports:
             - containerPort: 80
 ---
