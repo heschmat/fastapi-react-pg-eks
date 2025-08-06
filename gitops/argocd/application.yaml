@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: series-api
+  namespace: argocd
+spec:
+  destination:
+    namespace: series-api-ns
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: https://github.com/heschmat/fastapi-react-pg-eks.git
+    targetRevision: HEAD
+    path: k8s/manifests
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
