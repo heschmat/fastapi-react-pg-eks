@@ -1,0 +1,25 @@
+# .env (DO NOT commit this to GitHub!)
+
+# db ================================================== #
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_strong_password
+POSTGRES_DB=ratings_db
+DATABASE_URL=postgresql+asyncpg://postgres:your_strong_password@db:5432/ratings_db
+
+# aws ================================================= #
+AWS_ACC_ID=46793058xxxx
+AWS_REGION=us-east-1
+
+# eks ================================================= #
+CLUSTER_NAME=series-api
+NODEGROUP_NAME=series-api-ng
+INSTANCE_TYPE=t3.medium
+CLUSTER_NS=series-api-ns
+USE_SPOT=true
+
+# github ============================================== #
+GH_OWNER=heschmat
+GH_REPO=fastapi-react-pg-eks
+GH_PAT=ghp_xxx
+
+# xx ================================================== #
