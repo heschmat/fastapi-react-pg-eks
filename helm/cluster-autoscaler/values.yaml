@@ -1,0 +1,31 @@
+# values.yaml for Cluster Autoscaler on EKS
+
+autoDiscovery:
+  clusterName: series-api
+
+awsRegion: us-east-1
+
+# These control how CA behaves for scaling nodes, balancing workloads, and avoiding premature scale-downs.
+extraArgs:
+  balance-similar-node-groups: true
+  skip-nodes-with-system-pods: false
+  scale-down-unneeded-time: 2m
+  scale-down-delay-after-add: 1m
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 300Mi
+  requests:
+    cpu: 100m
+    memory: 300Mi
+
+# This prevents the CA pod itself from being evicted if the cluster decides to scale down.
+# Good practice for stability.
+podAnnotations:
+  cluster-autoscaler.kubernetes.io/safe-to-evict: "false"
+
+rbac:
+  serviceAccount:
+    create: false   # since eksctl already created it
+    name: cluster-autoscaler
