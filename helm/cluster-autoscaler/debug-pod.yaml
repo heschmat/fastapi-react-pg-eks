@@ -1,0 +1,16 @@
+# debug-pod.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug
+  namespace: kube-system
+spec:
+  serviceAccountName: cluster-autoscaler
+  containers:
+  - name: debug
+    image: amazonlinux:2
+    command: [ "sleep", "3600" ]
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
