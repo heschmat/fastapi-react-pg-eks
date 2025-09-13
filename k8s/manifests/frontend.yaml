@@ -15,9 +15,16 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: 467930584066.dkr.ecr.us-east-1.amazonaws.com/react-client:5633c41
+          image: 183056140671.dkr.ecr.us-east-1.amazonaws.com/frontend:v1
           ports:
             - containerPort: 80
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -32,4 +39,4 @@ spec:
       port: 80
       targetPort: 80
   type: ClusterIP
-
+---

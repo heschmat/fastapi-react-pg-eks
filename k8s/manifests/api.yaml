@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: 467930584066.dkr.ecr.us-east-1.amazonaws.com/fastapi-app:v2
+          image: 183056140671.dkr.ecr.us-east-1.amazonaws.com/api:v1
           ports:
             - containerPort: 8000
           env:
@@ -25,6 +25,13 @@ spec:
                   name: postgres-secret
                   key: DATABASE_URL
           command: ["./start.sh"]
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
 ---
 apiVersion: v1
 kind: Service
@@ -39,4 +46,4 @@ spec:
       port: 8000
       targetPort: 8000
   type: ClusterIP
-
+  
