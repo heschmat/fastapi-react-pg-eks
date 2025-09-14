@@ -7,7 +7,7 @@ POSTGRES_DB=ratings_db
 DATABASE_URL=postgresql+asyncpg://postgres:your_strong_password@db:5432/ratings_db
 
 # aws ================================================= #
-AWS_ACC_ID=46793058xxxx
+AWS_ACC_ID=183056140671
 AWS_REGION=us-east-1
 
 # eks ================================================= #
@@ -15,7 +15,11 @@ CLUSTER_NAME=series-api
 NODEGROUP_NAME=series-api-ng
 INSTANCE_TYPE=t3.medium
 CLUSTER_NS=series-api-ns
-USE_SPOT=true
+
+MIN_SIZE=1
+DESIRED_CAPACITY=1
+MAX_SIZE=5
+SPOT=true
 
 # github ============================================== #
 GH_OWNER=heschmat

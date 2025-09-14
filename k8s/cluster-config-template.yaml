@@ -11,8 +11,8 @@ iam:
 managedNodeGroups:
   - name: {{NODEGROUP_NAME}}
     instanceType: {{INSTANCE_TYPE}}
-    desiredCapacity: 1
-    minSize: 1
-    maxSize: 3
+    desiredCapacity: {{DESIRED_CAPACITY}}
+    minSize: {{MIN_SIZE}}
+    maxSize: {{MAX_SIZE}}
     volumeSize: 20
-    spot: true
+    spot: {{SPOT}}
