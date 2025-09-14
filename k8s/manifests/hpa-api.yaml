@@ -9,7 +9,7 @@ spec:
     kind: Deployment
     name: api
   minReplicas: 1
-  maxReplicas: 5
+  maxReplicas: 6
   metrics:
     - type: Resource
       resource:
@@ -23,3 +23,17 @@ spec:
         target:
           type: Utilization
           averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 120   # default is 300s
+      policies:
+        - type: Percent
+          value: 50  # can remove up to 1/2 of pods at once
+          periodSeconds: 15 # every 15 seconds interval
+    # scaleUp:
+    #   stabilizationWindowSeconds: 0     # default is 0s
+    #   policies:
+    #     - type: Percent
+    #       value: 100 # can add up to 100% of pods at once
+    #       periodSeconds: 15 # every 15 seconds interval
+---
