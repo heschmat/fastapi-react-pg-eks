@@ -5,7 +5,7 @@ metadata:
 provisioner: ebs.csi.aws.com
 parameters:
   type: gp3
-  fsType: ext4
+  csi.storage.k8s.io/fstype: ext4
   # Optional tuning—omit or adjust as you like:
   iops: "3000"
   throughput: "125"
