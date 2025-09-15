@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bombard-posts
+  namespace: series-api-ns
+spec:
+  replicas: 5   # scale up/down as needed
+  selector:
+    matchLabels:
+      app: bombard-posts
+  template:
+    metadata:
+      labels:
+        app: bombard-posts
+    spec:
+      containers:
+        - name: curl
+          image: curlimages/curl:8.8.0
+          command: ["/bin/sh", "-c"]
+          args:
+          # The loop creates a ~1MB payload to simulate memory usage
+          # Q: why it doesn't trigger HPA scale-up becauese of memory?
+          # Hint: it shouldn't.
+            - |
+              while true; do
+                USER="user$RANDOM"
+                SERIES=$(shuf -e "Breaking Bad" "Game of Thrones" "The Office" "Dark" "Friends" -n 1)
+                RATING=$(( (RANDOM % 5) + 1 ))
+
+                # Create ~1MB temp payload
+                TMPFILE=$(mktemp)
+                head -c 1000000 < /dev/zero | tr '\0' 'A' > "$TMPFILE"
+
+                # Send request with curl reading data from file
+                curl -s -X POST http://api.series-api-ns.svc.cluster.local:8000/rate \
+                  -H "Content-Type: application/json" \
+                  -d "{\"username\":\"$USER\",\"series_name\":\"$SERIES\",\"rating\":$RATING,\"extra_data\":$(cat $TMPFILE | jq -Rs .)}" \
+                  || true
+
+                rm -f "$TMPFILE"
+                sleep 0.1
+              done
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 200Mi
