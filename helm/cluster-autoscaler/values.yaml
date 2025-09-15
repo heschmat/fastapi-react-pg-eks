@@ -11,6 +11,9 @@ extraArgs:
   skip-nodes-with-system-pods: false
   scale-down-unneeded-time: 2m
   scale-down-delay-after-add: 1m
+  address: ":8085"                          # <- for metrics
+  write-status-configmap: "true"           # <- enables status reporting
+  status-config-map-name: "cluster-autoscaler-status"  # <- name of the status ConfigMap
 
 resources:
   limits:
