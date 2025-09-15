@@ -4,7 +4,7 @@ metadata:
   name: bombard-posts
   namespace: series-api-ns
 spec:
-  replicas: 10   # start with 1, scale up/down as needed
+  replicas: 1   # start with 1, scale up/down as needed
   selector:
     matchLabels:
       app: bombard-posts
@@ -32,3 +32,15 @@ spec:
             requests:
               cpu: 50m
               memory: 32Mi
+        - name: stress-mem
+          image: polinux/stress
+          command: ["stress"]
+          args: ["--vm", "1", "--vm-bytes", "300M", "--vm-hang", "1"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 350Mi
+            limits:
+              memory: 400Mi
+      restartPolicy: Always
+

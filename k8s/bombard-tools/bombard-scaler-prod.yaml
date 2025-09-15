@@ -1,0 +1,148 @@
+##########################################
+# Namespace for scaler machinery
+# Keeps CronJob, ConfigMap, Jobs isolated
+##########################################
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bombard-scaler-ns
+
+---
+##########################################
+# ConfigMap storing current index & sequence
+# index: tracks which step in the sequence we are
+# sequence: defines the scaling pattern
+##########################################
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bombard-scaler-state
+  namespace: bombard-scaler-ns
+data:
+  index: "0"
+  sequence: "1 3 5 7 9 11 7 4 1"
+
+---
+##########################################
+# ClusterRole for scaler
+# Allows:
+# - scaling bombard-posts in series-api-ns
+# - managing the ConfigMap in its own namespace
+##########################################
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: bombard-scaler-clusterrole
+rules:
+  # Allow scaling deployments (scale subresource)
+  - apiGroups: ["apps"]
+    resources: ["deployments/scale"]
+    resourceNames: ["bombard-posts"]
+    verbs: ["get", "patch"]
+  # Allow reading the deployment itself
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["bombard-posts"]
+    verbs: ["get","list","watch"]
+  # Allow ConfigMap operations in scaler namespace
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get","create","patch"]
+
+
+---
+##########################################
+# ClusterRoleBinding
+# Binds ClusterRole to the default ServiceAccount in bombard-scaler-ns
+##########################################
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: bombard-scaler-crb
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: bombard-scaler-ns
+roleRef:
+  kind: ClusterRole
+  name: bombard-scaler-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+
+---
+##########################################
+# Init Job
+# Creates the ConfigMap if it doesn't exist (idempotent)
+##########################################
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bombard-scaler-init
+  namespace: bombard-scaler-ns
+spec:
+  template:
+    spec:
+      serviceAccountName: default
+      restartPolicy: OnFailure
+      containers:
+      - name: init
+        image: bitnami/kubectl:1.27.4
+        command:
+          - /bin/sh
+          - -c
+          - |
+            if kubectl get cm bombard-scaler-state -n bombard-scaler-ns >/dev/null 2>&1; then
+              echo "ConfigMap already exists, skipping init"
+            else
+              echo "Creating ConfigMap with index=0 and sequence"
+              kubectl create cm bombard-scaler-state \
+                -n bombard-scaler-ns \
+                --from-literal=index=0 \
+                --from-literal="sequence=1 3 5 7 9 11 7 4 1"
+            fi
+
+---
+##########################################
+# CronJob
+# Runs every 4 minutes
+# Reads index from ConfigMap
+# Scales bombard-posts in series-api-ns
+# Updates index in ConfigMap
+##########################################
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bombard-scaler
+  namespace: bombard-scaler-ns
+spec:
+  schedule: "*/4 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: default
+          restartPolicy: Never
+          containers:
+          - name: scaler
+            image: bitnami/kubectl:1.27.4
+            command:
+              - /bin/bash
+              - -c
+              - |
+                # Read sequence & index from ConfigMap
+                SEQ=$(kubectl get cm bombard-scaler-state -n bombard-scaler-ns -o jsonpath='{.data.sequence}')
+                IDX=$(kubectl get cm bombard-scaler-state -n bombard-scaler-ns -o jsonpath='{.data.index}')
+                ARR=($SEQ)
+
+                # Pick replica count
+                REPLICAS=${ARR[$IDX]}
+                echo "$(date) Scaling bombard-posts in series-api-ns to $REPLICAS replicas"
+
+                # Scale deployment
+                kubectl scale deploy bombard-posts -n series-api-ns --replicas=$REPLICAS
+
+                # Compute next index in sequence
+                NEXT=$(( (IDX + 1) % ${#ARR[@]} ))
+
+                # Update ConfigMap with next index
+                kubectl patch cm bombard-scaler-state -n bombard-scaler-ns \
+                  --type merge -p "{\"data\": {\"index\": \"${NEXT}\"}}"
