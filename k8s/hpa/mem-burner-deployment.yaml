@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mem-burner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mem-burner
+  template:
+    metadata:
+      labels:
+        app: mem-burner
+    spec:
+      containers:
+        - name: mem-burner
+          image: polinux/stress
+          command: ["stress"]
+          args: ["--vm", "1", "--vm-bytes", "200M", "--vm-hang", "1"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 100Mi
+            limits:
+              cpu: 500m
+              memory: 500Mi
+      restartPolicy: Always
