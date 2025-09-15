@@ -4,6 +4,7 @@ kind: ClusterConfig
 metadata:
   name: {{CLUSTER_NAME}}
   region: {{REGION}}
+  version: "{{K8S_VERSION}}"
 
 iam:
   withOIDC: true

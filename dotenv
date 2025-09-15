@@ -13,12 +13,14 @@ AWS_REGION=us-east-1
 # eks ================================================= #
 CLUSTER_NAME=series-api
 NODEGROUP_NAME=series-api-ng
-INSTANCE_TYPE=t3.medium
+INSTANCE_TYPE=t3.small
 CLUSTER_NS=series-api-ns
+# https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+K8S_VERSION=1.33
 
 MIN_SIZE=1
 DESIRED_CAPACITY=1
-MAX_SIZE=5
+MAX_SIZE=7
 SPOT=true
 
 # github ============================================== #

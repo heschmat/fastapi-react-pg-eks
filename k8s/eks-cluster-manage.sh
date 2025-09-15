@@ -1,9 +1,13 @@
-$ cat k8s/eks-cluster-manage.sh
 #!/bin/bash
+#
+# Manage EKS cluster lifecycle using eksctl
+#
 
 set -euo pipefail
 
-# Load environment variables from root .env file
+#######################################
+# Load environment variables
+#######################################
 ROOT_DIR="$(dirname "$(dirname "$0")")"
 ENV_FILE="$ROOT_DIR/.env"
 
@@ -11,9 +15,12 @@ if [ -f "$ENV_FILE" ]; then
   # shellcheck disable=SC1091
   source "$ENV_FILE"
 else
-  echo "Warning: .env file not found at '$ENV_FILE', environment variables must be set manually."
+  echo "Warning: .env file not found at '$ENV_FILE'. Environment variables must be set manually."
 fi
 
+#######################################
+# Usage
+#######################################
 usage() {
   cat <<EOF
 Usage: $0 {create|delete} [options]
@@ -23,11 +30,12 @@ Required environment variables:
   AWS_REGION     - AWS region
   INSTANCE_TYPE  - EC2 instance type for node group
   NODEGROUP_NAME - Node group name
+  K8S_VERSION    - Kubernetes version (e.g., 1.28)
 
 Options (override env vars):
-  --min N         Minimum number of nodes (default: 1)
-  --desired N     Desired number of nodes (default: 1)
-  --max N         Maximum number of nodes (default: 4)
+  --min N             Minimum number of nodes (default: 1)
+  --desired N         Desired number of nodes (default: 1)
+  --max N             Maximum number of nodes (default: 4)
   --spot true|false   Use spot instances (default: true)
 
 Optional environment variables:
@@ -40,6 +48,9 @@ if [ $# -lt 1 ]; then
   usage
 fi
 
+#######################################
+# Parse arguments
+#######################################
 ACTION=$1
 shift
 
@@ -49,34 +60,20 @@ DESIRED_CAPACITY="${DESIRED_CAPACITY:-1}"
 MAX_SIZE="${MAX_SIZE:-4}"
 SPOT="${SPOT:-true}"
 
-# Parse CLI options
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --min)
-      MIN_SIZE="$2"
-      shift 2
-      ;;
-    --desired)
-      DESIRED_CAPACITY="$2"
-      shift 2
-      ;;
-    --max)
-      MAX_SIZE="$2"
-      shift 2
-      ;;
-    --spot)
-      SPOT="$2"
-      shift 2
-      ;;
-    *)
-      echo "Unknown option: $1"
-      usage
-      ;;
+    --min)     MIN_SIZE="$2"; shift 2 ;;
+    --desired) DESIRED_CAPACITY="$2"; shift 2 ;;
+    --max)     MAX_SIZE="$2"; shift 2 ;;
+    --spot)    SPOT="$2"; shift 2 ;;
+    *)         echo "Unknown option: $1"; usage ;;
   esac
 done
 
-# Validate required environment variables
-required_vars=(CLUSTER_NAME AWS_REGION INSTANCE_TYPE NODEGROUP_NAME)
+#######################################
+# Validate environment variables
+#######################################
+required_vars=(CLUSTER_NAME AWS_REGION INSTANCE_TYPE NODEGROUP_NAME K8S_VERSION)
 for var in "${required_vars[@]}"; do
   if [ -z "${!var:-}" ]; then
     echo "Error: Please set the environment variable '$var'."
@@ -90,7 +87,34 @@ if [[ "$SPOT" != "true" && "$SPOT" != "false" ]]; then
   exit 1
 fi
 
-# Template file located in the same directory as this script
+#######################################
+# Validate kubectl client version
+#######################################
+if command -v kubectl >/dev/null 2>&1; then
+  CLIENT_VERSION=$(kubectl version --client -o json | jq -r '.clientVersion.gitVersion' | sed 's/^v//')
+  CLIENT_MAJOR=$(echo "$CLIENT_VERSION" | cut -d. -f1)
+  CLIENT_MINOR=$(echo "$CLIENT_VERSION" | cut -d. -f2)
+
+  CLUSTER_MAJOR=$(echo "$K8S_VERSION" | cut -d. -f1)
+  CLUSTER_MINOR=$(echo "$K8S_VERSION" | cut -d. -f2)
+
+  if [ "$CLIENT_MAJOR" -ne "$CLUSTER_MAJOR" ]; then
+    echo "Error: Major version mismatch (kubectl=$CLIENT_MAJOR, cluster=$CLUSTER_MAJOR)."
+    exit 1
+  fi
+
+  DIFF=$(( CLUSTER_MINOR - CLIENT_MINOR ))
+  if [ ${DIFF#-} -gt 1 ]; then
+    echo "Error: Kubernetes minor version skew too large (kubectl=$CLIENT_MAJOR.$CLIENT_MINOR, cluster=$CLUSTER_MAJOR.$CLUSTER_MINOR)."
+    exit 1
+  fi
+else
+  echo "Warning: kubectl not found, skipping client version check."
+fi
+
+#######################################
+# Generate cluster config from template
+#######################################
 SCRIPT_DIR="$(dirname "$0")"
 TEMPLATE_FILE="$SCRIPT_DIR/cluster-config-template.yaml"
 
@@ -99,9 +123,7 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
   exit 1
 fi
 
-# Generate temporary config file with values filled in
 CONFIG_FILE=$(mktemp)
-
 sed \
   -e "s/{{CLUSTER_NAME}}/$CLUSTER_NAME/g" \
   -e "s/{{REGION}}/$AWS_REGION/g" \
@@ -111,12 +133,15 @@ sed \
   -e "s/{{DESIRED_CAPACITY}}/$DESIRED_CAPACITY/g" \
   -e "s/{{MAX_SIZE}}/$MAX_SIZE/g" \
   -e "s/{{SPOT}}/$SPOT/g" \
+  -e "s/{{K8S_VERSION}}/$K8S_VERSION/g" \
   "$TEMPLATE_FILE" > "$CONFIG_FILE"
 
-# Run eksctl command
+#######################################
+# Run eksctl action
+#######################################
 case "$ACTION" in
   create)
-    echo "Creating cluster '$CLUSTER_NAME' in region '$AWS_REGION'..."
+    echo "Creating cluster '$CLUSTER_NAME' (K8s $K8S_VERSION) in region '$AWS_REGION'..."
     eksctl create cluster -f "$CONFIG_FILE"
 
     echo "Updating kubeconfig..."
@@ -129,7 +154,6 @@ case "$ACTION" in
       else
         echo "Namespace '$CLUSTER_NS' already exists."
       fi
-
       kubectl config set-context --current --namespace="$CLUSTER_NS"
     fi
     ;;
@@ -137,11 +161,12 @@ case "$ACTION" in
     echo "Deleting cluster '$CLUSTER_NAME' in region '$AWS_REGION'..."
     eksctl delete cluster --name "$CLUSTER_NAME" --region "$AWS_REGION"
     ;;
-  *)
-    usage
-    ;;
+  *) usage ;;
 esac
 
-# Clean up temp config
+#######################################
+# Cleanup
+#######################################
 rm -f "$CONFIG_FILE"
 echo "Done."
+
