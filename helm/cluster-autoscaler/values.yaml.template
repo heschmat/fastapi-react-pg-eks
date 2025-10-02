@@ -1,9 +1,9 @@
-# values.yaml for Cluster Autoscaler on EKS
+# values.yaml.template for Cluster Autoscaler on EKS
 
 autoDiscovery:
-  clusterName: series-api
+  clusterName: ${CLUSTER_NAME}
 
-awsRegion: us-east-1
+awsRegion: ${AWS_REGION}
 
 # These control how CA behaves for scaling nodes, balancing workloads, and avoiding premature scale-downs.
 extraArgs:

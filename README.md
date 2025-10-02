@@ -85,10 +85,14 @@ helm repo add autoscaler https://kubernetes.github.io/autoscaler
 helm repo update
 
 cd ./helm/cluster-autoscaler/
+# reads the env. variables mentioned in `values.yaml.template` and saves it as `values.yaml`
+envsubst < values.yaml.template > values.yaml
 
 helm install cluster-autoscaler autoscaler/cluster-autoscaler \
   --namespace kube-system \
   -f values.yaml
+
+rm values.yaml
 ```
 
 ---
