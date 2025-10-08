@@ -8,7 +8,7 @@ terraform {
 
   backend "s3" {
     bucket               = "series-api-tf-state-bucket"
-    key                  = "setup"
+    key                  = "deploy"
     workspace_key_prefix = "deploy-env"
     region               = "us-east-1"
     use_lockfile         = true
