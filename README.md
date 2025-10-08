@@ -138,7 +138,7 @@ aws iam create-policy \
   --policy-document file://cluster-autoscaler-policy.json
 
 eksctl create iamserviceaccount \
-  --cluster series-api \
+  --cluster $CLUSTER_NAME \
   --namespace kube-system \
   --name cluster-autoscaler \
   --attach-policy-arn arn:aws:iam::$AWS_ACC_ID:policy/ClusterAutoscalerPolicy \
@@ -275,6 +275,87 @@ curl -X POST http:/${NODE_EXT_IP}:${API_NODEPORT}/rate \
 ##{"status":"success","data":{"username":"Kimi","series_name":"Dark","rating":4}}
 ```
 
+### 5. ALB controller
+
+create service account with IAM role
+```sh
+# AWS provides a ready-made IAM policy JSON (iam_policy.json) with all required permissions (ELB, Target Groups, Security Groups, etc.).
+curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.11.0/docs/install/iam_policy.json
+
+# Create IAM Policy
+aws iam create-policy \
+  --policy-name AWSLBControllerIAMPolicy \
+  --policy-document file://iam_policy.json
+
+# Remove the policy document:
+rm iam_policy.json
+
+# Use eksctl to bind the above policy to a Kubernetes service account:
+IAM_SA_NAME=aws-lb-ctl
+
+eksctl create iamserviceaccount \
+  --cluster $CLUSTER_NAME \
+  --namespace kube-system \
+  --name $IAM_SA_NAME \
+  --role-name AWSEKSLBControllerRole \
+  --attach-policy-arn arn:aws:iam::$AWS_ACC_ID:policy/AWSLBControllerIAMPolicy \
+  --approve
+
+```
+
+Deploy AWS LoadBalancer Controller:
+```sh
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update eks
+
+VPC_ID=$(aws eks describe-cluster \
+  --name "$CLUSTER_NAME" \
+  --region "$AWS_REGION" \
+  --query "cluster.resourcesVpcConfig.vpcId" \
+  --output text)
+
+echo $VPC_ID
+
+# Deploy the AWS Load Balancer Controller
+helm install aws-lb-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=$CLUSTER_NAME \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=$IAM_SA_NAME \
+  --set region=$AWS_REGION \
+  --set vpcId=$VPC_ID
+
+```
+
+verify the alb controller installation:
+```sh
+$ kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-load-balancer-controller
+NAME                                                              READY   STATUS    RESTARTS   AGE
+aws-lb-controller-aws-load-balancer-controller-6dc7cb4b7b-79hjb   1/1     Running   0          39s
+aws-lb-controller-aws-load-balancer-controller-6dc7cb4b7b-szjvl   1/1     Running   0          39s
+
+
+# verify the correct sa is attached to the alb controller:
+$ kubectl get deploy aws-lb-controller-aws-load-balancer-controller -n kube-system -o yaml | grep serviceAccountName
+## serviceAccountName: aws-lb-ctl
+```
+
+
+deploy ingress
+
+```sh
+k apply -f k8s/manifests/ingress.yaml
+
+aws elbv2 describe-load-balancers --region $AWS_REGION
+
+k get ing
+
+
+# make sure frontend can reach the api
+
+$ kubectl exec -it frontend-78445f6755-9sblk -- curl -s http://api:8000/api/recent
+{"detail":"Not Found"}
+```
 
 
 ### ?. HPA
@@ -287,6 +368,6 @@ So the flow is:
 - Cluster Autoscaler (if needed) adds/removes nodes to accommodate those replicas.
 
 ```sh
-
+#@TOD
 
 ```
