@@ -124,6 +124,14 @@ By default, pods inherit the IAM permissions of the node they're running on. Whi
 
 The recommended solution is to use IAM Roles for Service Accounts (IRSA), which provides fine-grained, pod-level permissions instead of relying on the node's IAM role. The following section explains how to configure IRSA for the Cluster Autoscaler.
 
+```sh
+$ k describe rs -n kube-system cluster-autoscaler-aws-cluster-autoscaler-dd69dc4f5
+...
+Events:
+  Type     Reason        Age                  From                   Message
+  ----     ------        ----                 ----                   -------
+  Warning  FailedCreate  78s (x16 over 4m2s)  replicaset-controller  Error creating: pods "cluster-autoscaler-aws-cluster-autoscaler-dd69dc4f5-" is forbidden: error looking up service account kube-system/cluster-autoscaler: serviceaccount "cluster-autoscaler" not found
+```
 ---
 
 #### 3. Configure IAM Permissions
