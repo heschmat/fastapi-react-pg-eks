@@ -66,7 +66,7 @@ echo $PRIVATE_SUBNETS
 Get the **security group** of the first EKS node:
 
 ```bash
-SG_ID=$(aws ec2 describe-instances \
+NODE_SG_ID=$(aws ec2 describe-instances \
   --filters "Name=private-dns-name,Values=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')" \
   --query "Reservations[].Instances[].SecurityGroups[].GroupId" \
   --output text)
@@ -77,7 +77,7 @@ Create a **new SG for RDS**:
 ```bash
 DB_NAME=series-db
 
-DB_SG=$(aws ec2 create-security-group \
+DB_SG_ID=$(aws ec2 create-security-group \
   --group-name "${DB_NAME}-sg" \
   --description "Security group for RDS Postgres in series-api" \
   --vpc-id "$VPC_ID" \
@@ -85,17 +85,17 @@ DB_SG=$(aws ec2 create-security-group \
   --query 'GroupId' \
   --output text)
 
-echo "Created RDS SG: $DB_SG"
+echo "Created RDS SG: $DB_SG_ID"
 ```
 
 Allow PostgreSQL (port 5432) traffic from EKS nodes:
 
 ```bash
 aws ec2 authorize-security-group-ingress \
-  --group-id $DB_SG \
+  --group-id $DB_SG_ID \
   --protocol tcp \
   --port 5432 \
-  --source-group $SG_ID \
+  --source-group $NODE_SG_ID \
   --region $AWS_REGION
 ```
 
@@ -114,7 +114,7 @@ aws rds create-db-subnet-group \
 ```
 
 *(Optional: delete later)*
-
+If it fails, delete and re-create it again.
 ```bash
 aws rds delete-db-subnet-group \
   --db-subnet-group-name $DB_SUBNET_GRP_NAME \
@@ -130,7 +130,7 @@ aws rds create-db-instance \
   --db-instance-identifier $DB_NAME \
   --db-name $POSTGRES_DB \
   --engine postgres \
-  --engine-version 15 \
+  --engine-version 17 \
   --db-instance-class db.t3.micro \
   --allocated-storage 20 \
   --master-username $POSTGRES_USER \
@@ -186,8 +186,8 @@ kubectl -n $CLUSTER_NS create secret generic postgres-secret \
 Run a debug pod with PostgreSQL client:
 
 ```bash
-kubectl -n $CLUSTER_NS run -i --tty debug --rm \
-  --image=postgres:15 \
+kubectl -n $CLUSTER_NS run -i --tty test-db --rm \
+  --image=postgres:17 \
   --env="DB_ENDPOINT=$DB_ENDPOINT" \
   --env="POSTGRES_USER=$POSTGRES_USER" \
   --env="POSTGRES_DB=$POSTGRES_DB" \
@@ -198,6 +198,7 @@ Inside the pod:
 
 ```bash
 psql -h $DB_ENDPOINT -U $POSTGRES_USER -d $POSTGRES_DB -p 5432
+# You'll be prompted to give your db password.
 ```
 
 Example output:
@@ -237,6 +238,7 @@ You now have:
 To delete resources:
 
 ```bash
+# Takes about 7 minutes.
 aws rds delete-db-instance \
   --db-instance-identifier $DB_NAME \
   --skip-final-snapshot \
@@ -251,7 +253,7 @@ aws rds delete-db-subnet-group \
   --region $AWS_REGION
 
 aws ec2 delete-security-group \
-  --group-id $DB_SG \
+  --group-id $DB_SG_ID \
   --region $AWS_REGION
 ```
 
