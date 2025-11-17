@@ -99,6 +99,7 @@ kubectl -n kube-system patch deployment cluster-autoscaler \
 ```sh
 helm repo add autoscaler https://kubernetes.github.io/autoscaler
 helm repo update
+helm repo update autoscaler
 
 cd ./helm/cluster-autoscaler/
 # reads the env. variables mentioned in `values.yaml.template` and saves it as `values.yaml`
@@ -152,6 +153,15 @@ eksctl create iamserviceaccount \
   --attach-policy-arn arn:aws:iam::$AWS_ACC_ID:policy/ClusterAutoscalerPolicy \
   --approve \
   --override-existing-serviceaccounts
+
+kubectl get sa -n kube-system | grep auto
+# cluster-autoscaler                            0         2m38s
+```
+
+Verify that the pod has is ready & in running state. This may take a couple of minutes.
+```sh
+$ kgp -n kube-system | grep auto
+cluster-autoscaler-aws-cluster-autoscaler-dd69dc4f5-z6lxk   1/1     Running   0          3m2s
 ```
 
 ##### Option 2: Node IAM Role
@@ -180,7 +190,9 @@ Enter Docker image tag (e.g. v1): 1.0
 Enter Kubernetes manifest filename (e.g. api.yaml): api.yaml
 ```
 
-### 4. Deploy the API to EKS
+### 4. Deploy the API & Co to EKS
+
+N.B. For production we'll be using **RDS**. If you choose to do so, skip the sections related to DB in this section and follow the instructions in `./db/rds-instructions.md`.
 
 First generate the `secret` for the database.
 ```sh
@@ -212,8 +224,8 @@ kubectl patch svc api -p '{"spec": {"type": "NodePort"}}'
 
 Now we can send the request to the backend api:
 ```sh
-NODE_EXT_IP=54.226.124.144
-API_NODEPORT=30324
+NODE_EXT_IP=13.219.231.153
+API_NODEPORT=30227
 
 curl -X POST http:/${NODE_EXT_IP}:${API_NODEPORT}/rate \
   -H "Content-Type: application/json" \
@@ -285,7 +297,7 @@ curl -X POST http:/${NODE_EXT_IP}:${API_NODEPORT}/rate \
 
 ### 5. ALB controller
 
-create service account with IAM role
+Create service account with IAM role
 ```sh
 # AWS provides a ready-made IAM policy JSON (iam_policy.json) with all required permissions (ELB, Target Groups, Security Groups, etc.).
 curl -O https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.11.0/docs/install/iam_policy.json
@@ -354,16 +366,23 @@ deploy ingress
 ```sh
 k apply -f k8s/manifests/ingress.yaml
 
+# verify the LB is provisioned:
 aws elbv2 describe-load-balancers --region $AWS_REGION
 
-k get ing
-
-
-# make sure frontend can reach the api
-
-$ kubectl exec -it frontend-78445f6755-9sblk -- curl -s http://api:8000/api/recent
-{"detail":"Not Found"}
+$ k get ing
+NAME               CLASS   HOSTS   ADDRESS                                                PORTS   AGE
+frontend-ingress   alb     *       k8s-seriesap-frontend-XXX.us-east-1.elb.amazonaws.com   80      34s
 ```
+
+Make sure frontend can reach the api
+```sh
+# replace `frontend-7b585c6b7b-snwzk` with your frontend pod name
+# check: kubectl get pod
+$ kubectl exec -it frontend-7b585c6b7b-snwzk -- curl -s http://api:8000/recent
+[{"username":"Kimi","series_name":"House MD","rating":5},{"username":"Greg","series_name":"House MD","rating":5},{"username":"Kimi","series_name":"friends","rating":5}]
+```
+
+Perfect — that confirms Kubernetes DNS, Services, and internal networking are all working exactly as they should.
 
 
 ### ?. HPA
