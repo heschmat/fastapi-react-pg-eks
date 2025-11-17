@@ -1,20 +1,26 @@
 # .env (DO NOT commit this to GitHub!)
 
 # db ================================================== #
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_strong_password
-POSTGRES_DB=ratings_db
-DATABASE_URL=postgresql+asyncpg://postgres:your_strong_password@db:5432/ratings_db
+export POSTGRES_USER=db_user
+export POSTGRES_PASSWORD=ChangeME
+export POSTGRES_DB=ratings_db
+export DATABASE_URL=postgresql+asyncpg://db_user:ChangeME@db:5432/ratings_db
+
+export POSTGRES_VERSION=17
+export DB_STORAGE_GB=20
+export DB_INSTANCE_CLASS=db.t3.micro
+export DB_NAME=series-db
+export DB_SUBNET_GRP_NAME=series-db-subnet-grp
 
 # aws ================================================= #
-AWS_ACC_ID=183056140671
-AWS_REGION=us-east-1
+AWS_ACC_ID=379738700125
+export AWS_REGION=us-east-1
 
 # eks ================================================= #
-CLUSTER_NAME=series-api
+export CLUSTER_NAME=series-api
 NODEGROUP_NAME=series-api-ng
 INSTANCE_TYPE=t3.small
-CLUSTER_NS=series-api-ns
+export CLUSTER_NS=series-api-ns
 # https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
 K8S_VERSION=1.33
 
