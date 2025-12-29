@@ -4,8 +4,6 @@
 When we deploy Cluster Autoscaler, it is just a Kubernetes pod running on one of your worker nodes in EKS. So, from Kubernetes' perspective, it's a "normal" pod like any other.
 For a pod to interact with AWS APIs (like creating or terminating EC2 instances), it needs AWS credentials. There are two common ways this happens:
 
-There are two common ways this happens:
-
 ## 1) Directly from the Node IAM Role
 
 Each EC2 node in an EKS cluster has an instance role attached. Any process running on that node can use the node's IAM role to make AWS API calls.
@@ -89,7 +87,7 @@ eksctl create iamserviceaccount \
   --name cluster-autoscaler \
   --namespace kube-system \
   --cluster $CLUSTER_NAME \
-  --attach-policy-arn arn:aws:iam::$AWS_ACC_ID:policy/AmazonEKSClusterAutoscalerPolicy \
+  --attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/AmazonEKSClusterAutoscalerPolicy \
   --approve \
   --override-existing-serviceaccounts
 
@@ -99,7 +97,20 @@ This does 3 things:
 - Creates an IAM role with the policy above
 - Annotates the ServiceAccount with the IAM role ARN
 
-Now the CA pod can assume this IAM role.
+Now the CA pod can assume this IAM role. You can check the IAM role associated in SA description, `annotation` section:
+```sh
+# e.g.,
+ubuntu:cluster-autoscaler$ kubectl describe sa cluster-autoscaler -n kube-system
+Name:                cluster-autoscaler
+Namespace:           kube-system
+Labels:              app.kubernetes.io/managed-by=eksctl
+Annotations:         eks.amazonaws.com/role-arn: arn:aws:iam::137423019814:role/eksctl-series-api-addon-iamserviceaccount-kub-Role1-NHXWJ2fbsSOh
+Image pull secrets:  <none>
+Mountable secrets:   <none>
+Tokens:              <none>
+Events:              <none>
+
+```
 
 Next:
 

@@ -70,7 +70,7 @@ What the script does:
 * If `CLUSTER_NS` is provided: creates the namespace & sets it as default
 
 
-Verify that the app namespace, saved in the environmental variable `CLUSTER_NS`, is the default one, so we don't have to pass all the time.
+Verify that the app namespace, saved in the environmental variable `CLUSTER_NS`, is the default one, so we don't have to pass it all the time like `... -n $CLUSTER_NS`.
 ```sh
 kubectl config view --minify --output 'jsonpath={..namespace}'
 ## series-api-ns
@@ -99,6 +99,8 @@ kubectl -n kube-system patch deployment cluster-autoscaler \
 ```sh
 helm repo add autoscaler https://kubernetes.github.io/autoscaler
 helm repo update
+
+helm repo list # `autoscaler` should be there
 helm repo update autoscaler
 
 cd ./helm/cluster-autoscaler/
@@ -135,39 +137,7 @@ Events:
 ```
 ---
 
-#### 3. Configure IAM Permissions
-
-The Cluster Autoscaler needs AWS API permissions.
-
-##### Option 1: IRSA (recommended)
-
-```sh
-aws iam create-policy \
-  --policy-name ClusterAutoscalerPolicy \
-  --policy-document file://cluster-autoscaler-policy.json
-
-eksctl create iamserviceaccount \
-  --cluster $CLUSTER_NAME \
-  --namespace kube-system \
-  --name cluster-autoscaler \
-  --attach-policy-arn arn:aws:iam::$AWS_ACC_ID:policy/ClusterAutoscalerPolicy \
-  --approve \
-  --override-existing-serviceaccounts
-
-kubectl get sa -n kube-system | grep auto
-# cluster-autoscaler                            0         2m38s
-```
-
-Verify that the pod has is ready & in running state. This may take a couple of minutes.
-```sh
-$ kgp -n kube-system | grep auto
-cluster-autoscaler-aws-cluster-autoscaler-dd69dc4f5-z6lxk   1/1     Running   0          3m2s
-```
-
-##### Option 2: Node IAM Role
-
-Each EKS worker node has an instance role. The Cluster Autoscaler pod can use this role to make AWS API calls, but this grants broader access than IRSA.
-
+Follow the instructions on `./helm/cluster-autoscaler/README.md`, ISRA section.
 
 ### 3. ECR
 
@@ -175,7 +145,7 @@ Make sure you can authenticate with the ECR:
 ```sh
 # Authenticate Docker to ECR
 aws ecr get-login-password --region $AWS_REGION \
-  | docker login --username AWS --password-stdin $AWS_ACC_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+  | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 ```
 
 Use the script `deploy_to_ecr.sh` to provision the ECR repository and create, tag & push the docker image for frontend and backend/api to ECR.
@@ -224,8 +194,8 @@ kubectl patch svc api -p '{"spec": {"type": "NodePort"}}'
 
 Now we can send the request to the backend api:
 ```sh
-NODE_EXT_IP=13.219.231.153
-API_NODEPORT=30227
+NODE_EXT_IP=54.85.168.69
+API_NODEPORT=32712
 
 curl -X POST http:/${NODE_EXT_IP}:${API_NODEPORT}/rate \
   -H "Content-Type: application/json" \
@@ -311,14 +281,14 @@ aws iam create-policy \
 rm iam_policy.json
 
 # Use eksctl to bind the above policy to a Kubernetes service account:
-IAM_SA_NAME=aws-lb-ctl
+ALB_IAM_SA_NAME=aws-lb-ctl
 
 eksctl create iamserviceaccount \
   --cluster $CLUSTER_NAME \
   --namespace kube-system \
-  --name $IAM_SA_NAME \
+  --name $ALB_IAM_SA_NAME \
   --role-name AWSEKSLBControllerRole \
-  --attach-policy-arn arn:aws:iam::$AWS_ACC_ID:policy/AWSLBControllerIAMPolicy \
+  --attach-policy-arn arn:aws:iam::$AWS_ACCOUNT_ID:policy/AWSLBControllerIAMPolicy \
   --approve
 
 ```
@@ -337,11 +307,13 @@ VPC_ID=$(aws eks describe-cluster \
 echo $VPC_ID
 
 # Deploy the AWS Load Balancer Controller
-helm install aws-lb-controller eks/aws-load-balancer-controller \
+ALB_RELEASE_NAME=aws-lb-controller
+
+helm install $ALB_RELEASE_NAME eks/aws-load-balancer-controller \
   -n kube-system \
   --set clusterName=$CLUSTER_NAME \
   --set serviceAccount.create=false \
-  --set serviceAccount.name=$IAM_SA_NAME \
+  --set serviceAccount.name=$ALB_IAM_SA_NAME \
   --set region=$AWS_REGION \
   --set vpcId=$VPC_ID
 
@@ -360,8 +332,20 @@ $ kubectl get deploy aws-lb-controller-aws-load-balancer-controller -n kube-syst
 ## serviceAccountName: aws-lb-ctl
 ```
 
+If it's `default` service-account, you can upgrade the pod like
+```sh
+helm upgrade -i $ALB_RELEASE_NAME eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=$CLUSTER_NAME \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=$ALB_IAM_SA_NAME
 
-deploy ingress
+helm list -n kube-system
+
+```
+
+
+### 6. deploy ingress
 
 ```sh
 k apply -f k8s/manifests/ingress.yaml

@@ -12,6 +12,7 @@ This guide explains how to deploy a **PostgreSQL RDS instance** inside the same 
 * Environment variables set for DB configuration:
 
 ```bash
+# we assume the followings are set.
 export CLUSTER_NAME=series-api
 export AWS_REGION=us-east-1
 export CLUSTER_NS=series-api-ns
@@ -70,15 +71,14 @@ NODE_SG_ID=$(aws ec2 describe-instances \
   --filters "Name=private-dns-name,Values=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')" \
   --query "Reservations[].Instances[].SecurityGroups[].GroupId" \
   --output text)
+echo $NODE_SG_ID
 ```
 
 Create a **new SG for RDS**:
 
 ```bash
-DB_NAME=series-db
-
 DB_SG_ID=$(aws ec2 create-security-group \
-  --group-name "${DB_NAME}-sg" \
+  --group-name "${POSTGRES_DB}-sg" \
   --description "Security group for RDS Postgres in series-api" \
   --vpc-id "$VPC_ID" \
   --region "$AWS_REGION" \
@@ -104,8 +104,6 @@ aws ec2 authorize-security-group-ingress \
 ## 4. Create an RDS Subnet Group
 
 ```bash
-DB_SUBNET_GRP_NAME=series-db-subnet-grp
-
 aws rds create-db-subnet-group \
   --db-subnet-group-name $DB_SUBNET_GRP_NAME \
   --db-subnet-group-description "Private subnets for RDS Postgres in series-api" \
@@ -126,8 +124,9 @@ aws rds delete-db-subnet-group \
 ## 5. Launch the RDS Instance
 
 ```bash
+# DB_INSTANCE_IDENTIFIER: name shown on AWS console; also part of the DB ENDPOINT
 aws rds create-db-instance \
-  --db-instance-identifier $DB_NAME \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
   --db-name $POSTGRES_DB \
   --engine postgres \
   --engine-version 17 \
@@ -135,7 +134,7 @@ aws rds create-db-instance \
   --allocated-storage 20 \
   --master-username $POSTGRES_USER \
   --master-user-password $POSTGRES_PASSWORD \
-  --vpc-security-group-ids $DB_SG \
+  --vpc-security-group-ids $DB_SG_ID \
   --db-subnet-group-name $DB_SUBNET_GRP_NAME \
   --backup-retention-period 7 \
   --multi-az \
@@ -147,7 +146,7 @@ Wait until the DB is available. This will take about 15 minutes.
 
 ```bash
 aws rds wait db-instance-available \
-  --db-instance-identifier $DB_NAME \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
   --region $AWS_REGION
 ```
 
@@ -157,7 +156,7 @@ aws rds wait db-instance-available \
 
 ```bash
 DB_ENDPOINT=$(aws rds describe-db-instances \
-  --db-instance-identifier $DB_NAME \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
   --region $AWS_REGION \
   --query "DBInstances[0].Endpoint.Address" \
   --output text)
@@ -240,12 +239,12 @@ To delete resources:
 ```bash
 # Takes about 7 minutes.
 aws rds delete-db-instance \
-  --db-instance-identifier $DB_NAME \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
   --skip-final-snapshot \
   --region $AWS_REGION
 
 aws rds wait db-instance-deleted \
-  --db-instance-identifier $DB_NAME \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
   --region $AWS_REGION
 
 aws rds delete-db-subnet-group \
