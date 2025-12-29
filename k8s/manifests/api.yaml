@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: 183056140671.dkr.ecr.us-east-1.amazonaws.com/api:v1
+          image: 137423019814.dkr.ecr.us-east-1.amazonaws.com/api:v2
           ports:
             - containerPort: 8000
           env:
@@ -38,11 +38,14 @@ kind: Service
 metadata:
   name: api
   namespace: series-api-ns
+  labels:
+    app: api
 spec:
   selector:
     app: api
   ports:
-    - protocol: TCP
+    - name: http
+      protocol: TCP
       port: 8000
       targetPort: 8000
   type: ClusterIP

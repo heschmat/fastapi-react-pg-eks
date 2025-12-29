@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend
+  namespace: monitoring
+  labels:
+    release: monitoring   # 👈 REQUIRED
+spec:
+  selector:
+    matchLabels:
+      app: api # This should match the label of the Service you want to monitor
+  namespaceSelector:
+    matchNames:
+      - series-api-ns
+  endpoints:
+    - port: http # This should match the port name defined in the Service
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
