@@ -112,6 +112,10 @@ helm install cluster-autoscaler autoscaler/cluster-autoscaler \
   -f values.yaml
 
 rm values.yaml
+
+helm list -n kube-system
+helm uninstall cluster-autoscaler -n kube-system
+
 ```
 
 Verify
@@ -368,7 +372,25 @@ $ kubectl exec -it frontend-7b585c6b7b-snwzk -- curl -s http://api:8000/recent
 
 Perfect — that confirms Kubernetes DNS, Services, and internal networking are all working exactly as they should.
 
+We can send request (rate a tv series) to the frontend usign `curl` as well:
+```sh
+ALB_DNS_NAME=http://k8s-seriesap-frontend-011338803a-2002438327.us-east-1.elb.amazonaws.com/
 
+curl -X POST "$ALB_DNS_NAME/api/rate" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"zoe","series_name":"friends","rating":4}'
+
+
+# fire
+
+for i in {1..10}; do
+  curl -s -X POST "$ALB_DNS_NAME/api/rate" \
+    -H "Content-Type: application/json" \
+    -d "{\"username\":\"user$i\",\"series_name\":\"friends\",\"rating\":$((i % 6))}" &
+done
+wait
+
+```
 ### ?. HPA
 
 An HPA is always attached to a workload, usually a `Deployment` (but it can also target a `ReplicaSet` or `StatefulSet`).
@@ -380,5 +402,11 @@ So the flow is:
 
 ```sh
 #@TOD
+
+```
+
+
+```sh
+
 
 ```

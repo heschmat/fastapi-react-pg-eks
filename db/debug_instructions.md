@@ -102,3 +102,48 @@ kubectl rollout restart deployment api -n series-api-ns
 
 ```
 
+
+
+```sh
+aws rds describe-db-instances \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
+  --query "DBInstances[0].DBSubnetGroup.Subnets[].SubnetIdentifier"
+
+
+aws eks describe-nodegroup \
+  --cluster-name $CLUSTER_NAME \
+  --nodegroup-name $NODEGROUP_NAME \
+  --query "nodegroup.subnets"
+
+
+kubectl -n $CLUSTER_NS run net-debug \
+  -it --rm \
+  --image=ghcr.io/nicolaka/netshoot \
+  -- bash
+
+
+
+aws eks describe-cluster \
+  --name $CLUSTER_NAME \
+  --query "cluster.resourcesVpcConfig.clusterSecurityGroupId"
+
+# node sg
+aws ec2 describe-instances \
+  --filters "Name=tag:eks:cluster-name,Values=$CLUSTER_NAME" \
+  --query "Reservations[].Instances[].SecurityGroups[].GroupId" \
+  --output text
+
+
+aws rds describe-db-instances \
+  --db-instance-identifier $DB_INSTANCE_IDENTIFIER \
+  --query "DBInstances[0].VpcSecurityGroups"
+
+aws ec2 describe-security-groups \
+  --group-ids sg-04c84e2cdcc3f1543 \
+  --query "SecurityGroups[0].IpPermissions"
+
+
+
+
+
+```

@@ -64,16 +64,6 @@ echo $PRIVATE_SUBNETS
 
 ## 3. Security Groups
 
-Get the **security group** of the first EKS node:
-
-```bash
-NODE_SG_ID=$(aws ec2 describe-instances \
-  --filters "Name=private-dns-name,Values=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')" \
-  --query "Reservations[].Instances[].SecurityGroups[].GroupId" \
-  --output text)
-echo $NODE_SG_ID
-```
-
 Create a **new SG for RDS**:
 
 ```bash
@@ -86,6 +76,15 @@ DB_SG_ID=$(aws ec2 create-security-group \
   --output text)
 
 echo "Created RDS SG: $DB_SG_ID"
+```
+
+Get the **security group** of the first EKS node:
+```bash
+NODE_SG_ID=$(aws ec2 describe-instances \
+  --filters "Name=private-dns-name,Values=$(kubectl get nodes -o jsonpath='{.items[0].metadata.name}')" \
+  --query "Reservations[].Instances[].SecurityGroups[].GroupId" \
+  --output text)
+echo $NODE_SG_ID
 ```
 
 Allow PostgreSQL (port 5432) traffic from EKS nodes:
@@ -187,16 +186,16 @@ Run a debug pod with PostgreSQL client:
 ```bash
 kubectl -n $CLUSTER_NS run -i --tty test-db --rm \
   --image=postgres:17 \
-  --env="DB_ENDPOINT=$DB_ENDPOINT" \
-  --env="POSTGRES_USER=$POSTGRES_USER" \
-  --env="POSTGRES_DB=$POSTGRES_DB" \
+  --env="host=$DB_ENDPOINT" \
+  --env="db_user=$POSTGRES_USER" \
+  --env="db_name=$POSTGRES_DB" \
   -- bash
 ```
 
 Inside the pod:
 
 ```bash
-psql -h $DB_ENDPOINT -U $POSTGRES_USER -d $POSTGRES_DB -p 5432
+psql -h $host -U $db_user -d $db_name -p 5432
 # You'll be prompted to give your db password.
 ```
 

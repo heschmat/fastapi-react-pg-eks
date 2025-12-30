@@ -100,7 +100,7 @@ This does 3 things:
 Now the CA pod can assume this IAM role. You can check the IAM role associated in SA description, `annotation` section:
 ```sh
 # e.g.,
-ubuntu:cluster-autoscaler$ kubectl describe sa cluster-autoscaler -n kube-system
+$ kubectl describe sa cluster-autoscaler -n kube-system
 Name:                cluster-autoscaler
 Namespace:           kube-system
 Labels:              app.kubernetes.io/managed-by=eksctl
